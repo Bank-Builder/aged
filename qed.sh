@@ -45,7 +45,7 @@ function displayHelp(){
     echo "          decrypt (with your private key) and verify signature (with counterparty public key) of cyphertext";
     echo "";
     echo "  UNINSTALL:";
-    echo "   qed-uninstall";
+    echo "   qed-remove";
     echo "";
 }
 
