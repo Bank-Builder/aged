@@ -14,6 +14,19 @@ Todo:
   basic use cases with age explained
 ```
 
+* Aged allows you to securely send files or messages to any github user by encrypting and signing using your private key and their github public keys.
+* Aged currently only works on Linux.
+* Aged is CI friendly and may be used within CI pipelines to encrypt/decrypt extremely sensitive artefacts such as secrets from/to a github repo.
+
+### Available functions
+
+| Function  | Description |
+| ------------------------------ | --------------------------------- |
+| aged init <github-user> | creates a ~/.aged.conf file with your default github username. |
+| aged keys list | List the keys available for encryption & signing. These are keys where the private key is found in `~/.ssh` and the public key has been uploaded as a github ssh key for your username. |
+| | |
+
+
 
 References:
 * https://lindevs.com/install-age-command-for-encrypting-files-on-ubuntu/
