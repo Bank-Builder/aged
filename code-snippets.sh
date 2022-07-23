@@ -13,3 +13,7 @@ else
 fi
 
 
+# get sha256sum of a file
+sha256sum README.md | awk '{print $1}'
+
+# wc-c is 65

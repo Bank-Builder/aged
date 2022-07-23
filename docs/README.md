@@ -50,7 +50,7 @@ The steps for building & sending an encrypted `QED` message or file are:
 | SS | 32 bytes | 32 bute `secret key` to be used to decrypt the `cipher text` |
 
 
-
+![qed payload](./qed.png)
 
 ### Add your key(s) detail
 
