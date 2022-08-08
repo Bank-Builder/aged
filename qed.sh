@@ -71,26 +71,26 @@ function selectPublicKey(){
     exit 1
   fi
   # else return selected public key in PKCS8 format
-  echo $rndPub > tmp.pubkey
-  local publicKey=$(ssh-keygen -e -f tmp.pubkey -m pkcs8)
+  echo $rndPub > tmp.pub
+  local publicKey=$(ssh-keygen -e -f tmp.pub -m pkcs8)
+  rm tmp.pub
   echo $publicKey;
-  rm tmp.*
+  exit 0
 }
 
 function findPrivateKey(){
-  local publicKey="$1"
-  # given any publicKey for OWN repo
+  # given a tmp.publicKey for OWN repo
   # iterate through avialable private keys
+  
   while read F; 
   do 
-    echo $F;
-    # openssl dgst -sha256 -sign $F -out tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV') &> /dev/null
-    # result=$(openssl dgst -sha256 -verify tmp.pubkey -signature tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV'))
-    # if [ "$result"=="Verified OK" ]; then
-    #   echo "$F"
-    #   exit 0
-    # fi
-  done < <(shopt -s extglob && cd ~/.ssh && ls -d !(*.*) -l -f | grep id_)
+    openssl dgst -sha256 -sign $F -out tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV') &> /dev/null
+    result=$(openssl dgst -sha256 -verify tmp.publicKey -signature tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV') &2> /dev/null)
+    if [ "$result"=="Verified OK" ]; then
+      echo "$F"
+      exit 0
+    fi
+  done < <(find ~/.ssh/id_*  -maxdepth 1 -type f | grep -v .pub)
 
   # sign known_random_string 
   # verify with publickKey
@@ -154,14 +154,13 @@ function displayConfig(){
     echo "[x] default github username found : $_userName"
     publicKey=$(selectPublicKey ${_userName})
     echo $publicKey > tmp.publicKey
-
     if [ "publicKey" == "" ]; then
       echo "[ ] no valid RSA public key(s) found for $_userName."
       exit 1
     else  
       echo "[x] valid RSA public key(s) found at github.com"
       
-      privateKey=$(findPrivateKey "tmp.publickey" )
+      privateKey=$(findPrivateKey "tmp.publicKey" )
       if [ "$privateKey" != "" ]; then
         echo "[x] valid associated RSA private key(s) found locally: $privateKey"
         echo "---"
