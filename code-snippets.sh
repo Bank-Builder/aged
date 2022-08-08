@@ -65,3 +65,23 @@ if [ $? != 0 ] ; then
     echo "this was definitely not a RSA public key in PKCS8 format"
     exit 1
 fi
+
+
+openssl rand 32 -out secret_key
+
+openssl aes-256-cbc -in LoveLetter.txt -out LoveLetter.txt.enc -pass file:secret_key
+
+openssl rsautl -encrypt -pubin -inkey id_rsa.pub.pkcs8 -in secret_key -out secret_key.enc
+
+#sign the plain text message
+openssl dgst -sha256 -sign id_bb -out message.signature message.plaintext 
+# the signature is saved seperately
+cat message.signature 
+#verify the plain text message signature
+openssl dgst -sha256 -verify id_bb.pkcs8 -signature message.signature message.plaintext 
+
+
+
+---
+### References
+* https://security.stackexchange.com/questions/32768/converting-keys-between-openssl-and-openssh
