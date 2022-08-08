@@ -46,6 +46,11 @@ sha256sum README.md | awk '{print $1}'
  
 cat encrypted.txt | base64 -d | openssl rsautl -decrypt -inkey id_bb -in - > plaintext.out
  
+# list possible private keys
+> NOTE: the ssh keys **MUST** be named `id_<keyname>` and `id_<keyname>.pub` respectively and **MUST** be in the `~/.ssh` folder for `qed` to work.
+
+while read F  ; do echo $F; done < <(shopt -s extglob && cd ~/.ssh && ls -d !(*.*) -l -f | grep id_)
+
 
 # generate some legitimate message with plaintext words
 shuf -n 1000 /usr/share/dict/words | fmt -w 72 > message.plaintext

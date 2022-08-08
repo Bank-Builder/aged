@@ -6,11 +6,12 @@
 
 # Globals
 _version="0.1"
+_configPath="/home/$USER/.local/share/qed/"
 _configFile="/home/$USER/.local/share/qed/qed.conf"
 _here=$(pwd)
 _currentDate="$(date +%Y%m%d-%H%M)"
-_localUsername="$(git config --get user.name)"
-_localEmail="$(git config --get user.email)"
+_userName="$(git config --get user.name)"
+_Email="$(git config --get user.email)"
 _localKeyPath="~/.ssh"
 _localKey="id_rsa"
 _counterparty=""
@@ -38,6 +39,9 @@ function displayHelp(){
     echo "          eg. --init bank-builder ~/.ssh";
     echo "       Note: if a .conf file does not exist then upon first use default values will be configured";
     echo "";
+    echo "   qed --config";
+    echo "          will display the configuration information";
+    echo "";
     echo "   qed -e [counterparty-github-username] [plaintext]";
     echo "          encrypt (with counter party public key) and sign (with your private key) plaintext";
     echo "";
@@ -50,21 +54,50 @@ function displayHelp(){
 }
 
 function selectPublicKey(){
-  # given github username
-  # get list of keys
+  github_id=$1
+  curl -s https://github.com/$github_id.keys > tmp.pub
+
   # randomly select one of the RSA keys
-  # if no RSA keys found then exit with msg 
-  #     "QED requries a valid RSA 2048 bit public key. See: qed --help."
+  numKeys=$(( $(cat tmp.pub | grep ssh-rsa | wc -l) ))
+  if [ $numKeys -gt 0 ]; then
+    keyNum=$(expr 1 + $RANDOM % $numKeys)
+    rndPub=$(sed "${keyNum}q;d" tmp.pub)
+    if [ "$rndPub" == "" ]; then $error="no keys found"; fi;
+  else
+     error="no keys found"
+  fi
+  if [ "$error" != "" ]; then  # no RSA keys found
+    echo "ERROR: no valid public keys found for $github-id."
+    exit 1
+  fi
   # else return selected public key in PKCS8 format
+  echo $rndPub > tmp.pubkey
+  local publicKey=$(ssh-keygen -e -f tmp.pubkey -m pkcs8)
+  echo $publicKey;
+  rm tmp.*
 }
 
 function findPrivateKey(){
+  local publicKey="$1"
   # given any publicKey for OWN repo
   # iterate through avialable private keys
+  while read F; 
+  do 
+    echo $F;
+    # openssl dgst -sha256 -sign $F -out tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV') &> /dev/null
+    # result=$(openssl dgst -sha256 -verify tmp.pubkey -signature tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV'))
+    # if [ "$result"=="Verified OK" ]; then
+    #   echo "$F"
+    #   exit 0
+    # fi
+  done < <(shopt -s extglob && cd ~/.ssh && ls -d !(*.*) -l -f | grep id_)
+
   # sign known_random_string 
   # verify with publickKey
   # if verified then we have found the associated privateKey
   # return name of associated private key or ""
+  echo "";
+  exit 1;
 }
 
 function createCipherText(){
@@ -82,6 +115,7 @@ function createCipherText(){
   # cipherText = cipherText + encKey + salt + sender-id + len[sender-id:2 bytes]
   # cipherText=base64(cipherText)
   # return cipherText.b64
+  echo "";
 }
 
 function createPlainText(){
@@ -101,6 +135,7 @@ function createPlainText(){
   # verify dgst(plaintext, publicKey of sender-id)
   # if ?$=0 then return plainText
   # else return "" error msg not to be trusted
+  echo "";
 }
 
 function displayVersion(){
@@ -108,6 +143,46 @@ function displayVersion(){
     echo "Copyright (C) 2022, Cyber-Mint (Pty) Ltd";
     echo "License MIT: https://opensource.org/licenses/MIT";
     echo "";
+}
+
+function displayConfig(){
+  # get default github username
+  # confirm RSA public key exists
+  # confirm associated private key can be found
+  echo "Validating configuration ..."
+  if [ "$_userName" != "" ]; then
+    echo "[x] default github username found : $_userName"
+    publicKey=$(selectPublicKey ${_userName})
+    echo $publicKey > tmp.publicKey
+
+    if [ "publicKey" == "" ]; then
+      echo "[ ] no valid RSA public key(s) found for $_userName."
+      exit 1
+    else  
+      echo "[x] valid RSA public key(s) found at github.com"
+      
+      privateKey=$(findPrivateKey "tmp.publickey" )
+      if [ "$privateKey" != "" ]; then
+        echo "[x] valid associated RSA private key(s) found locally: $privateKey"
+        echo "---"
+        exit 0
+      else
+        echo "[ ] no valid associated RSA private found locally"
+        exit 1  
+      fi
+    fi
+  else
+    echo "[ ] default github username found :";
+    echo "";
+    echo "Tip: try the following to configure git.."
+    echo "  git config --global user.name <username>";
+    echo "  git config --global user.email '<email>' "
+    echo "  git config --global color.ui auto"
+    echo "  ssh -T git@github.com"
+    exit 1;
+  fi
+
+
 }
 
 function trim(){
@@ -168,6 +243,8 @@ while [[ "$#" > 0 ]]; do
             displayHelp; exit 0;;
         --version) 
             displayVersion; exit 0;;
+        --config) 
+            displayConfig; exit 0;;
         -i|--init) 
             _localUsername="$2";
             _localKeypath="$3";
