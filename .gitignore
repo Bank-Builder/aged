@@ -1,0 +1,11 @@
+bb.pem
+encrypted.pem.txt
+encrypted.txt
+id_bb
+id_bb.pem
+id_bb.pkcs8
+id_bb.pub
+message.cyphertext
+message.plaintext
+plaintext.out
+plaintext.txt
