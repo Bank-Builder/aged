@@ -59,3 +59,9 @@ cat message.plaintext | openssl enc -e -base64 -aes-128-ctr -nopad -nosalt -pbkd
 # decrypt & display cyphertext message
 cat message.cyphertext | openssl enc -d -a -aes-128-ctr -nopad -nosalt -pbkdf2 -k $QED_PASSWORD 
 
+#check the format of the pub key is correct
+openssl rsa -RSAPublicKey_in -pubin -in id_bb.pkcs8 -noout &> /dev/null
+if [ $? != 0 ] ; then
+    echo "this was definitely not a RSA public key in PKCS8 format"
+    exit 1
+fi
