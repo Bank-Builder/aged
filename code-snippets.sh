@@ -79,7 +79,7 @@ openssl dgst -sha256 -sign id_bb -out message.signature message.plaintext
 cat message.signature 
 #verify the plain text message signature
 openssl dgst -sha256 -verify id_bb.pkcs8 -signature message.signature message.plaintext 
-
+> `dgst` just works with the `pkcs8` key and rsa private key without further modification
 
 
 ---

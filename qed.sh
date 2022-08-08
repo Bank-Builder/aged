@@ -24,7 +24,7 @@ function displayHelp(){
     echo "   github associated private & public ssh keys.";
     echo "";
     echo "  OPTIONS:";
-    echo "    -i, --init      initialises qed.conf with a specific github username & key path";
+    echo "    -i, --init      initialises ~/.qed.conf with a specific github username & key path";
     echo "    -u, --username  specify a non-default sender username";
     echo "        --help      display this help and exit";
     echo "        --version   display version and exit";
@@ -49,6 +49,57 @@ function displayHelp(){
     echo "";
 }
 
+function selectPublicKey(){
+  # given github username
+  # get list of keys
+  # randomly select one of the RSA keys
+  # return this public key in PKCS8 format
+}
+
+function findPrivateKey(){
+  # given any publicKey for OWN repo
+  # iterate through avialable private keys
+  # sign known_random_string 
+  # verify with publickKey
+  # if verified then we have found the associated privateKey
+  # return name of associated private key or ""
+}
+
+function createCipherText(){
+  # given github username of recipient-id
+  # given plaintext message
+  # given github username of sender-id
+  # selectPublicKey of recipient-id
+  # selectPublicKey of sender-id
+  # findPrivateKey of sender-id
+  # generate 32 byte key
+  # generate 32 byte salt
+  # generate dgst (plainText |privateKey of sender-id) (fixed length/padded)
+  # cipherText = AES encrypt (plainText + dgst | key, salt)
+  # encKey = RSA encrypt(key | publicKey of Recipient-id) + pad (2048)
+  # cipherText = cipherText + encKey + salt + sender-id + len[sender-id:2 bytes]
+  # cipherText=base64(cipherText)
+  # return cipherText.b64
+}
+
+function createPlainText(){
+  # given cipherText.b64
+  # given github username of sender-id
+  # given the github username of recipient-id
+  # cipherText = base64 -d cipherText.b64
+  # len-sender-id = len[:2]
+  # sender-id = cut (len - len[]:2] bytes)
+  # selectPublicKey of sender-id
+  # salt = cut (32 bytes from end before sender-id)
+  # encKey = cut (2048 bits from end before salt) 
+  # key = RSA decrypt (encKey | privateKey of Recipient-id) & figure out padding
+  # plainText = AES decrypt (cipherText | key,salt)
+  # dgst = cut (32 bytes from end of plaintext) & figure out padding
+  # plainText = cut (lhs up to digest)
+  # verify dgst(plaintext, publicKey of sender-id)
+  # if ?$=0 then return plainText
+  # else return "" error msg not to be trusted
+}
 
 function displayVersion(){
     echo "qed version $_version";
