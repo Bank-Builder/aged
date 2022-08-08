@@ -6,7 +6,7 @@
 
 # Globals
 _version="0.1"
-_configPath="/home/$USER/.local/share/qed/"
+_configPath="/home/$USER/.local/share/qed"
 _configFile="/home/$USER/.local/share/qed/qed.conf"
 _here=$(pwd)
 _currentDate="$(date +%Y%m%d-%H%M)"
@@ -56,48 +56,62 @@ function displayHelp(){
 function selectPublicKey(){
   github_id=$1
   curl -s https://github.com/$github_id.keys > tmp.pub
-
-  # randomly select one of the RSA keys
-  numKeys=$(( $(cat tmp.pub | grep ssh-rsa | wc -l) ))
-  if [ $numKeys -gt 0 ]; then
-    keyNum=$(expr 1 + $RANDOM % $numKeys)
-    rndPub=$(sed "${keyNum}q;d" tmp.pub)
-    if [ "$rndPub" == "" ]; then $error="no keys found"; fi;
-  else
-     error="no keys found"
-  fi
-  if [ "$error" != "" ]; then  # no RSA keys found
-    echo "ERROR: no valid public keys found for $github-id."
+  found="$(cat tmp.pub)"
+  
+  if [ "$found" == "Not Found" ]; then
+    echo "Not Found"
     exit 1
+  else
+    # randomly select one of the RSA keys
+    numKeys=$(( $(cat tmp.pub | grep ssh-rsa | wc -l) ))
+    if [ $numKeys -gt 0 ]; then
+      keyNum=$(expr 1 + $RANDOM % $numKeys)
+      rndPub=$(sed "${keyNum}q;d" tmp.pub)
+      # we return selected public key in PKCS8 format
+        echo $rndPub > tmp.pub
+        ssh-keygen -e -f tmp.pub -m pkcs8 > tmp.publicKey
+        if [ $? -eq 0 ]; then
+          rm tmp.pub
+          echo $(cat ./tmp.publicKey)
+          exit 0
+        fi
+    fi
   fi
-  # else return selected public key in PKCS8 format
-  echo $rndPub > tmp.pub
-  local publicKey=$(ssh-keygen -e -f tmp.pub -m pkcs8)
-  rm tmp.pub
-  echo $publicKey;
-  exit 0
+  echo "Not Found"
+  exit 1
 }
 
 function findPrivateKey(){
   # given a tmp.publicKey for OWN repo
   # iterate through avialable private keys
-  
+  rm -rf  $_configPath/.ssh/
+  mkdir -p $_configPath/.ssh
   while read F; 
-  do 
-    openssl dgst -sha256 -sign $F -out tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV') &> /dev/null
-    result=$(openssl dgst -sha256 -verify tmp.publicKey -signature tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV') &2> /dev/null)
-    if [ "$result"=="Verified OK" ]; then
-      echo "$F"
-      exit 0
+  do
+    cp ~/.ssh/$F $_configPath/.ssh/$F
+    chmod u=rw $_configPath/.ssh/$F
+
+    ssh-keygen -p -m PKCS8 -f $_configPath/.ssh/$F -q -N "" &> /dev/null
+    if [ $? -eq 0 ]; then
+      openssl dgst -sha256 -sign $_configPath/.ssh/$F -out tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV') &> /dev/null
+      if [ $? -eq 0 ]; then  
+        openssl dgst -sha256 -verify tmp.publicKey -signature tmp.signature - < <(echo '12345678asfvasfvXCvXCXCbvXCV') &> /dev/null 
+        if [ $? -eq 0 ]; then
+          echo "$F"
+          exit 0
+        fi
+      fi
+    else
+      # do nothing
+      sleep 1  
     fi
-  done < <(find ~/.ssh/id_*  -maxdepth 1 -type f | grep -v .pub)
+  done < <(find ~/.ssh/id_*  -maxdepth 1 -type f -printf "%f\n" | grep -v .pub)
 
   # sign known_random_string 
-  # verify with publickKey
+  # verify with publicKey
   # if verified then we have found the associated privateKey
   # return name of associated private key or ""
-  echo "";
-  exit 1;
+  exit 1
 }
 
 function createCipherText(){
@@ -153,21 +167,22 @@ function displayConfig(){
   if [ "$_userName" != "" ]; then
     echo "[x] default github username found : $_userName"
     publicKey=$(selectPublicKey ${_userName})
-    echo $publicKey > tmp.publicKey
-    if [ "publicKey" == "" ]; then
+    
+    if [ "$publicKey" == "Not Found" ]; then
       echo "[ ] no valid RSA public key(s) found for $_userName."
-      exit 1
+
+      rm tmp.* && exit 1
     else  
       echo "[x] valid RSA public key(s) found at github.com"
       
       privateKey=$(findPrivateKey "tmp.publicKey" )
-      if [ "$privateKey" != "" ]; then
+      if [ "$privateKey" == "" ]; then
+        echo "[ ] no valid associated RSA private found locally"
+        rm tmp.* && exit 1
+      else  
         echo "[x] valid associated RSA private key(s) found locally: $privateKey"
         echo "---"
-        exit 0
-      else
-        echo "[ ] no valid associated RSA private found locally"
-        exit 1  
+        rm tmp.* && exit 0
       fi
     fi
   else
@@ -178,9 +193,8 @@ function displayConfig(){
     echo "  git config --global user.email '<email>' "
     echo "  git config --global color.ui auto"
     echo "  ssh -T git@github.com"
-    exit 1;
+    rm tmp.* && exit 1
   fi
-
 
 }
 
