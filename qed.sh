@@ -45,7 +45,7 @@ function displayHelp(){
     echo "          decrypt (with your private key) and verify signature (with counterparty public key) of cyphertext";
     echo "";
     echo "  UNINSTALL:";
-    echo "   qed-remove";
+    echo "   qed-remove will completely remove all vestiges of qed that were installed with qed-install";
     echo "";
 }
 
@@ -53,7 +53,9 @@ function selectPublicKey(){
   # given github username
   # get list of keys
   # randomly select one of the RSA keys
-  # return this public key in PKCS8 format
+  # if no RSA keys found then exit with msg 
+  #     "QED requries a valid RSA 2048 bit public key. See: qed --help."
+  # else return selected public key in PKCS8 format
 }
 
 function findPrivateKey(){
