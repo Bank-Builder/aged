@@ -53,32 +53,61 @@ function displayHelp(){
     echo "";
 }
 
-function selectPublicKey(){
+function fetchPublicKeys(){
+  #---------------
+  # selectPublicKey [github-username]
+  #    * fetch the public keys for the github user
+  #    * return an array of any ssh-rsa keys
+  # Copyright 2022, Cyber-Mint (Pty)Ltd   
+  #---------------
   github_id=$1
-  curl -s https://github.com/$github_id.keys > tmp.pub
-  found="$(cat tmp.pub)"
+  delimiter="ssh"
+  found=$(curl -s https://github.com/$github_id.keys)
   
-  if [ "$found" == "Not Found" ]; then
-    echo "Not Found"
-    exit 1
+  keys=()
+  parts=$(echo "$found" | awk -v RS="-$delimiter-" '{print $0}')
+  prefix=""
+  for part in $parts;do 
+    if [[ "$part" == *"ssh"* ]]; then 
+      prefix="$part";
+    else #add the key only if it is an ssh key
+      if [[ $prefix == *"ssh-rsa"* ]]; then keys+=("$prefix $part");fi;
+      prefix="";
+    fi;  
+  done;
+
+  if [ ${#keys[@]} -gt 0 ]; then
+    echo ${keys[@]} # RETURN the keys()
+    exit 0
   else
-    # randomly select one of the RSA keys
-    numKeys=$(( $(cat tmp.pub | grep ssh-rsa | wc -l) ))
-    if [ $numKeys -gt 0 ]; then
-      keyNum=$(expr 1 + $RANDOM % $numKeys)
-      rndPub=$(sed "${keyNum}q;d" tmp.pub)
-      # we return selected public key in PKCS8 format
-        echo $rndPub > tmp.pub
-        ssh-keygen -e -f tmp.pub -m pkcs8 > tmp.publicKey
-        if [ $? -eq 0 ]; then
-          rm tmp.pub
-          echo $(cat ./tmp.publicKey)
-          exit 0
-        fi
+    echo "RSA SSH Keys Not Found!"
+    exit 1
+  fi
+}
+
+function selectPublicKey(){
+  #---------------
+  # selectPublicKey [array-of-rsa-keys]
+  #    * returns a random key from an array of RSA keys
+  # Copyright 2022, Cyber-Mint (Pty)Ltd   
+  #---------------  
+  keys=$1
+  numKeys=((${#keys[@]}))
+
+  if [[ $numKeys -gt 0 ]];then
+    rndPub=${keys[expr 1 + $RANDOM % $numKeys]}
+    # we return selected public key in PKCS8 format
+    echo $rndPub > tmp.pub
+    ssh-keygen -e -f tmp.pub -m pkcs8 > tmp.publicKey
+    if [ $? -eq 0 ]; then # no errors generating PKCS8 pubkey format
+      rm tmp.pub
+      echo $(cat ./tmp.publicKey)
+      exit 0
+    else
+      echo ""
+      exit 1  
     fi
   fi
-  echo "Not Found"
-  exit 1
 }
 
 function findPrivateKey(){
@@ -278,9 +307,6 @@ done
 if [ -n "$_configFile" ]; then
   processConfig $_configFile
 fi  
-
-
-
 
 echo "Try qed --help for help";
 echo "";
